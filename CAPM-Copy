@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Feb  7 14:07:12 2022
+
+@author: lindseynorberg
+"""
+
+# load modules
+import numpy as np
+import pandas as pd
+
+# risk-free Treasury rate
+R_f = 0.0175 / 252
+
+# read in the market data
+data = pd.read_csv('capm_market_data.csv')
+
+data.head()
+
+drop_date = data.drop("date", axis = 1)
+drop_date.head()
+
+drop_date['spy_daily_return'] = drop_date['spy_adj_close'].pct_change()
+drop_date['aapl_daily_return'] = drop_date['aapl_adj_close'].pct_change()
+returns = drop_date.dropna().drop(['spy_adj_close', 'aapl_adj_close'], axis = 1)
+
+returns.head(5)
+
+print("SPY returns:", np.array(returns.spy_daily_return)[ :5], '\n')
+print("AAPL returns:", np.array(returns.aapl_daily_return)[ :5])
+
+excess_aapl = np.array(returns['aapl_daily_return'] - R_f)
+excess_spy = np.array(returns['spy_daily_return'] - R_f)
+
+print("AAPL Excess Returns:", excess_aapl[-5: ], '\n')
+print("SPY Excess Returns:", excess_spy[-5: ])
+
+import matplotlib as plt
+from matplotlib import pyplot
+
+plt.pyplot.scatter(excess_spy, excess_aapl)
+
+inner = 1 / np.matmul(np.transpose(excess_spy), excess_spy)
+second = inner * np.transpose(excess_spy)
+beta = np.matmul(second, excess_aapl)
+beta
+
+def beta_sensitivity(x, y):
+    """
+    PURPOSE: Takes x and y and one by one calculates the beta estimate with each observation omitted
+    
+    INPUTS
+    x      numpy array of values for the x variable
+    y      numpy array of values for the y variable 
+    
+    OUTPUT
+    A list of tuples that contains the observation row dropped and the beta estimate
+    """
+    output = [] 
+    for i in range(len(x)):
+        newx = np.delete(x, i).reshape(-1, 1)
+        newy = np.delete(y, i).reshape(-1, 1)
+
+        inner = 1 / np.matmul(np.transpose(newx), newx)
+        second = inner * np.transpose(newx)
+        beta = np.matmul(second, newy)
+        
+        output.append((i, beta[0][0]))
+    
+    return output  
+
+
+beta_sensitivity(excess_spy, excess_aapl)[:5]
